@@ -1,0 +1,858 @@
+---
+title: "PMA"
+author: "Rehuel Christopher Johannes"
+date: '2023-05-10'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(plyr)
+library(dplyr)
+library(lubridate)
+library(tidyverse)
+library(tibble)
+library(forecast)
+library(fitdistrplus)
+library(stats4)
+library(MASS)
+# for other necessary test or graphical tools
+library(survival)
+library(actuar)
+library(distrMod)
+```
+
+## R Markdown
+
+```{r}
+# data kepesertaan
+data<-read.csv("C:/Semester 4/PMA II/02KunjunganFKTP/01 Kepesertaan.csv", header = TRUE, sep = "|")
+data
+```
+
+```{r}
+#preprocess dob 
+# buat ubah format tanggal
+datax<- gsub("jan", "-1-", data$PSTV03)
+datax
+datax<- gsub("feb", "-2-", datax)
+datax
+datax<- gsub("mar", "-3-", datax)
+datax
+datax<- gsub("apr", "-4-", datax)
+datax
+datax<- gsub("may", "-5-", datax)
+datax
+datax<- gsub("jun", "-6-", datax)
+datax
+datax<- gsub("jul", "-7-", datax)
+datax
+datax<- gsub("aug", "-8-", datax)
+datax
+datax<- gsub("sep", "-9-", datax)
+datax
+datax<- gsub("oct", "-10-", datax)
+datax
+datax<- gsub("nov", "-11-", datax)
+datax
+datax<- gsub("dec", "-12-", datax)
+datax
+data$PSTV03<-as.Date(datax, format = "%d-%m-%Y")
+View(data)
+data
+```
+
+```{r}
+# data kunjungan FKRTL
+fkrtl<-read.csv("C:/Semester 4/PMA II/02KunjunganFKTP/04 Kunjungan FKRTL.csv", header = TRUE, sep = "|")
+fkrtl
+```
+```{r}
+#preprocess dob 
+datax<- gsub("jan", "-1-", fkrtl$FKL03)
+datax
+datax<- gsub("feb", "-2-", datax)
+datax
+datax<- gsub("mar", "-3-", datax)
+datax
+datax<- gsub("apr", "-4-", datax)
+datax
+datax<- gsub("may", "-5-", datax)
+datax
+datax<- gsub("jun", "-6-", datax)
+datax
+datax<- gsub("jul", "-7-", datax)
+datax
+datax<- gsub("aug", "-8-", datax)
+datax
+datax<- gsub("sep", "-9-", datax)
+datax
+datax<- gsub("oct", "-10-", datax)
+datax
+datax<- gsub("nov", "-11-", datax)
+datax
+datax<- gsub("dec", "-12-", datax)
+datax
+fkrtl$FKL03<-as.Date(datax, format = "%d-%m-%Y")
+datax<- gsub("jan", "-1-", fkrtl$FKL04)
+datax
+datax<- gsub("feb", "-2-", datax)
+datax
+datax<- gsub("mar", "-3-", datax)
+datax
+datax<- gsub("apr", "-4-", datax)
+datax
+datax<- gsub("may", "-5-", datax)
+datax
+datax<- gsub("jun", "-6-", datax)
+datax
+datax<- gsub("jul", "-7-", datax)
+datax
+datax<- gsub("aug", "-8-", datax)
+datax
+datax<- gsub("sep", "-9-", datax)
+datax
+datax<- gsub("oct", "-10-", datax)
+datax
+datax<- gsub("nov", "-11-", datax)
+datax
+datax<- gsub("dec", "-12-", datax)
+datax
+fkrtl$FKL04<-as.Date(datax, format = "%d-%m-%Y")
+View(fkrtl)
+fkrtl
+
+```
+
+```{r}
+#merge data kepesertaan dan fkrtl
+data_a = data.frame(PSTV01 = data$PSTV01 ,PSTV03 = data$PSTV03, PSTV05 = data$PSTV05)
+fkrtl_a = data.frame(PSTV01 = fkrtl$PSTV01, FKL02 = fkrtl$FKL02, FKL03 = fkrtl$FKL03, FKL04 = fkrtl$FKL04, FKL17 = fkrtl$FKL17, FKL18 = fkrtl$FKL18, FKL48 = fkrtl$FKL48, FKL49=fkrtl$FKL49)
+merge_data = merge(data_a, fkrtl_a,by="PSTV01")
+View(merge_data)
+merge_data
+```
+```{r}
+# cek apakah terdapat data duplikat
+merge_data %>% group_by(PSTV01) %>% filter(duplicated(FKL02))
+# drop data duplikat
+merge_data = merge_data[!duplicated(merge_data$FKL02), ]
+merge_data
+
+```
+```{r}
+# cek missing value pada data
+missing_value = colSums(is.na(merge_data))
+missing_value
+missing_value_percentage = round(colSums(is.na(merge_data))/prod(dim(merge_data))*100,3)
+missing_value_percentage
+
+# Untuk kolom FKL17 karena missing value di bawah 1%, akan di drop baris ini
+data_clean = merge_data %>% drop_na()
+data_clean
+```
+
+```{r}
+# buat variable usia
+data_clean$age<- as.numeric(difftime(data_clean$FKL03, data_clean$PSTV03, units = "weeks"))/52.25
+data_clean
+```
+
+```{r}
+hist(fitn$age....merge_data.age,col="green",main="Histogram attacs",xlab="number of attacs",ylab="Freq")
+```
+
+```{r}
+plotdist(fitn$age....merge_data.age, histo = TRUE, demp = TRUE)
+```
+
+```{r}
+descdist(fitn$age....merge_data.age)
+descdist(fitn$age....merge_data.age, boot = 1000)
+```
+
+```{r}
+nbinom.f<- fitdist(fitn$age....merge_data.age, "nbinom") 
+pois.f<- fitdist(fitn$age....merge_data.age, "pois")# Poisson
+norm.f <- fitdist(fitn$age....merge_data.age, "norm") # Normal
+exp.f <- fitdist(fitn$age....merge_data.age, "exp") # Exponential
+summary(nbinom.f)
+summary(pois.f)
+summary(norm.f)
+summary(exp.f)
+
+par(mfrow = c(2, 2))
+plot.legend <- c("Binomial neg", "Poisson","Normal","Exponential")
+denscomp(list(nbinom.f,pois.f,norm.f,exp.f), legendtext = plot.legend)
+qqcomp(list(nbinom.f,pois.f,norm.f,exp.f), legendtext = plot.legend)
+
+cdfcomp(list(nbinom.f,pois.f,norm.f,exp.f), legendtext = plot.legend)
+ppcomp(list(nbinom.f,pois.f,norm.f,exp.f), legendtext = plot.legend)
+```
+
+
+```{r}
+# 1. Distribusi Penyakit Menurut Diagnosis Primer
+# buat lihat daftar penyakit
+data_clean %>% count(FKL17) %>% arrange(desc(n))
+data_clean %>% count(FKL18) %>% arrange(desc(n))
+```
+
+```{r}
+# outlier detection and normalizing
+outlier_norm <- function(x){
+   qntile <- quantile(x, probs=c(.25, .75))
+   caps <- quantile(x, probs=c(.05, .95))
+   H <- 1.5 * IQR(x, na.rm = T)
+   x[x < (qntile[1] - H)] <- caps[1]
+   x[x > (qntile[2] + H)] <- caps[2]
+   return(x)
+}
+```
+
+
+
+```{r}
+# leukemia
+data_clean %>% filter(str_detect(FKL18, "leukaemia"))
+leukemia = data_clean %>% filter( FKL17 %in% c("C910", "C911", "C912","C919","C920","C921","C925","C927","C929", "C930","C931", "C942", "C943", "C950","C951","C959"))
+leukemia
+
+# Plot deteksi outlier
+plot_leukemia= ggplot(leukemia,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif Leukemia")+xlab("Leukemia")+ylab("Value")
+ggplotly(plot_leukemia)
+
+#handling outlier
+leukemia$FKL48=outlier_norm(leukemia$FKL48)
+
+# plot setelah treatment
+tplot_leukemia= ggplot(leukemia,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif Leukemia")+xlab("Leukemia")+ylab("Value")
+ggplotly(tplot_leukemia)
+
+### Menghitung jumlah pasien dan total tarif ###
+# cek apakah ada pasien dengan ID yang sama?
+leukemia %>% count(PSTV01) %>% arrange(desc(n))
+#  Total Tarif untuk setiap ID pasien 
+leukemia_a = leukemia %>% group_by(PSTV01) %>% summarise(sum_FKL48 = sum(FKL48), .groups = "drop" ) %>% as.data.frame()
+leukemia_a
+# drop pasien dengan ID yang sama
+leukemia_b = leukemia[!duplicated(leukemia$PSTV01), ]
+leukemia_b
+# gabungkan dengan total tarif untuk setiap ID pasien
+leukemia_b$Total_tarif = leukemia_a$sum_FKL48
+leukemia_b
+
+#pisah berdasar gender
+leukemia_male = leukemia_b %>% filter( PSTV05 == "Laki-laki")
+leukemia_male
+leukemia_female = leukemia_b %>% filter( PSTV05 == "Perempuan")
+leukemia_female
+
+#pisah berdasar tahun kunjungan FKL03
+leukemia_male_2015 = leukemia_male %>% filter(str_detect(FKL03, "2015"))
+leukemia_male_2016 = leukemia_male %>% filter(str_detect(FKL03, "2016"))
+leukemia_female_2015 = leukemia_female %>% filter(str_detect(FKL03, "2015"))
+leukemia_female_2016 = leukemia_female %>% filter(str_detect(FKL03, "2016"))
+
+#Hitung total tarif
+sum(leukemia_male_2015$Total_tarif)
+sum(leukemia_male_2016$Total_tarif)
+sum(leukemia_female_2015$Total_tarif)
+sum(leukemia_female_2016$Total_tarif)
+
+# Total pasien
+nrow(leukemia_male_2015)
+nrow(leukemia_male_2016)
+nrow(leukemia_female_2015)
+nrow(leukemia_female_2016)
+
+### Calculate Morbidity Rate ###
+
+#pisah berdasar gender
+leukemia_male = leukemia %>% filter( PSTV05 == "Laki-laki")
+leukemia_male
+leukemia_female = leukemia %>% filter( PSTV05 == "Perempuan")
+leukemia_female
+
+
+fit_leukemiamale<-data.frame(id<-leukemia_male$PSTV01, age<-leukemia_male$age)
+fitn_leukemiamale <- fit_leukemiamale %>% group_by(id....leukemia_male.PSTV01) %>% filter(!duplicated(age....leukemia_male.age))
+fitn_leukemiamale
+
+fit_leukemiafemale<-data.frame(id<-leukemia_female$PSTV01, age<-leukemia_female$age)
+fitn_leukemiafemale <- fit_leukemiafemale %>% group_by(id....leukemia_female.PSTV01) %>% filter(!duplicated(age....leukemia_female.age))
+fitn_leukemiafemale
+
+
+# export to excel
+library(writexl)
+write_xlsx(fitn_leukemiamale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_leukemiamale.xlsx", col_names = TRUE)
+write_xlsx(fitn_leukemiafemale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_leukemiafemale.xlsx", col_names = TRUE)
+```
+
+
+```{r}
+stroke = data_clean %>% filter( FKL17 %in% c("I64", "I694")) 
+stroke
+
+# Plot deteksi outlier
+plot_stroke= ggplot(stroke,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif stroke")+xlab("stroke")+ylab("Value")
+ggplotly(plot_stroke)
+
+#handling outlier
+stroke$FKL48=outlier_norm(stroke$FKL48)
+
+# plot setelah treatment
+tplot_stroke= ggplot(stroke,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif stroke")+xlab("stroke")+ylab("Value")
+ggplotly(tplot_stroke)
+
+
+### Menghitung jumlah pasien dan total tarif ###
+# cek apakah ada pasien dengan ID yang sama?
+stroke %>% count(PSTV01) %>% arrange(desc(n))
+#  Total Tarif untuk setiap ID pasien 
+stroke_a = stroke %>% group_by(PSTV01) %>% summarise(sum_FKL48 = sum(FKL48), .groups = "drop" ) %>% as.data.frame()
+stroke_a
+# drop pasien dengan ID yang sama
+stroke_b = stroke[!duplicated(stroke$PSTV01), ]
+stroke_b
+# gabungkan dengan total tarif untuk setiap ID pasien
+stroke_b$Total_tarif = stroke_a$sum_FKL48
+stroke_b
+
+#pisah berdasar gender
+stroke_male = stroke_b %>% filter( PSTV05 == "Laki-laki")
+stroke_male
+stroke_female = stroke_b %>% filter( PSTV05 == "Perempuan")
+stroke_female
+
+#pisah berdasar tahun kunjungan FKL03
+stroke_male_2015 = stroke_male %>% filter(str_detect(FKL03, "2015"))
+stroke_male_2016 = stroke_male %>% filter(str_detect(FKL03, "2016"))
+stroke_female_2015 = stroke_female %>% filter(str_detect(FKL03, "2015"))
+stroke_female_2016 = stroke_female %>% filter(str_detect(FKL03, "2016"))
+
+
+#Hitung total tarif
+sum(stroke_male_2015$Total_tarif)
+sum(stroke_male_2016$Total_tarif)
+sum(stroke_female_2015$Total_tarif)
+sum(stroke_female_2016$Total_tarif)
+
+# Total pasien
+nrow(stroke_male_2015)
+nrow(stroke_male_2016)
+nrow(stroke_female_2015)
+nrow(stroke_female_2016)
+
+### Morbidity rate ###
+
+#pisah berdasar gender
+stroke_male = stroke %>% filter( PSTV05 == "Laki-laki")
+stroke_male
+stroke_female = stroke %>% filter( PSTV05 == "Perempuan")
+stroke_female
+
+# buat ambil kolom id dan umur
+fit_strokemale<-data.frame(id<-stroke_male$PSTV01, age<-stroke_male$age)
+fitn_strokemale <- fit_strokemale %>% group_by(id....stroke_male.PSTV01) %>% filter(!duplicated(age....stroke_male.age))
+fitn_strokemale
+
+fit_strokefemale<-data.frame(id<-stroke_female$PSTV01, age<-stroke_female$age)
+fitn_strokefemale <- fit_strokefemale %>% group_by(id....stroke_female.PSTV01) %>% filter(!duplicated(age....stroke_female.age))
+fitn_strokefemale
+
+
+#ekspor ke excel
+library(writexl)
+write_xlsx(fitn_strokemale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_strokemale.xlsx", col_names = TRUE)
+write_xlsx(fitn_strokefemale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_strokefemale.xlsx", col_names = TRUE)
+
+```
+
+```{r}
+gagal_ginjal = data_clean %>% filter( FKL17 %in% c("N180","N189","N170","N172","N178","N179" )) #digabungin
+gagal_ginjal
+
+
+# Plot deteksi outlier
+plot_gagal_ginjal= ggplot(gagal_ginjal,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif gagal_ginjal")+xlab("gagal_ginjal")+ylab("Value")
+ggplotly(plot_gagal_ginjal)
+
+#handling outlier
+gagal_ginjal$FKL48=outlier_norm(gagal_ginjal$FKL48)
+
+# plot setelah treatment
+tplot_gagal_ginjal= ggplot(gagal_ginjal,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif gagal_ginjal")+xlab("gagal_ginjal")+ylab("Value")
+ggplotly(tplot_gagal_ginjal)
+
+
+### Menghitung jumlah pasien dan total tarif ###
+# cek apakah ada pasien dengan ID yang sama?
+gagal_ginjal %>% count(PSTV01) %>% arrange(desc(n))
+#  Total Tarif untuk setiap ID pasien 
+gagal_ginjal_a = gagal_ginjal %>% group_by(PSTV01) %>% summarise(sum_FKL48 = sum(FKL48), .groups = "drop" ) %>% as.data.frame()
+gagal_ginjal_a
+# drop pasien dengan ID yang sama
+gagal_ginjal_b = gagal_ginjal[!duplicated(gagal_ginjal$PSTV01), ]
+gagal_ginjal_b
+# gabungkan dengan total tarif untuk setiap ID pasien
+gagal_ginjal_b$Total_tarif = gagal_ginjal_a$sum_FKL48
+gagal_ginjal_b
+
+#pisah berdasar gender
+gagal_ginjal_male = gagal_ginjal_b %>% filter( PSTV05 == "Laki-laki")
+gagal_ginjal_male
+gagal_ginjal_female = gagal_ginjal_b %>% filter( PSTV05 == "Perempuan")
+gagal_ginjal_female
+
+#pisah berdasar tahun kunjungan FKL03
+gagal_ginjal_male_2015 = gagal_ginjal_male %>% filter(str_detect(FKL03, "2015"))
+gagal_ginjal_male_2016 = gagal_ginjal_male %>% filter(str_detect(FKL03, "2016"))
+gagal_ginjal_female_2015 = gagal_ginjal_female %>% filter(str_detect(FKL03, "2015"))
+gagal_ginjal_female_2016 = gagal_ginjal_female %>% filter(str_detect(FKL03, "2016"))
+
+#Hitung total tarif
+sum(gagal_ginjal_male_2015$Total_tarif)
+sum(gagal_ginjal_male_2016$Total_tarif)
+sum(gagal_ginjal_female_2015$Total_tarif)
+sum(gagal_ginjal_female_2016$Total_tarif)
+
+# Total pasien
+nrow(gagal_ginjal_male_2015)
+nrow(gagal_ginjal_male_2016)
+nrow(gagal_ginjal_female_2015)
+nrow(gagal_ginjal_female_2016)
+
+### Tabel Morbiditas ###
+
+#pisah berdasar gender
+gagal_ginjal_male = gagal_ginjal %>% filter( PSTV05 == "Laki-laki")
+gagal_ginjal_male
+gagal_ginjal_female = gagal_ginjal %>% filter( PSTV05 == "Perempuan")
+gagal_ginjal_female
+
+# buat ambil kolom id dan umur
+fit_gagal_ginjalmale<-data.frame(id<-gagal_ginjal_male$PSTV01, age<-gagal_ginjal_male$age)
+fitn_gagal_ginjalmale <- fit_gagal_ginjalmale %>% group_by(id....gagal_ginjal_male.PSTV01) %>% filter(!duplicated(age....gagal_ginjal_male.age))
+fitn_gagal_ginjalmale
+
+fit_gagal_ginjalfemale<-data.frame(id<-gagal_ginjal_female$PSTV01, age<-gagal_ginjal_female$age)
+fitn_gagal_ginjalfemale <- fit_gagal_ginjalfemale %>% group_by(id....gagal_ginjal_female.PSTV01) %>% filter(!duplicated(age....gagal_ginjal_female.age))
+fitn_gagal_ginjalfemale
+
+gagal_ginjal %>% count(PSTV01) %>% arrange(desc(n))
+
+#ekspor ke excel
+library(writexl)
+write_xlsx(fitn_gagal_ginjalmale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_gagal_ginjalmale.xlsx", col_names = TRUE)
+write_xlsx(fitn_gagal_ginjalfemale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_gagal_ginjalfemale.xlsx", col_names = TRUE)
+```
+```{r}
+
+jantung = data_clean %>% filter(FKL17 %in% c("I01", "I05", "I06", "I07", "I08", "I09", "I11", "I13", "I018", "I019", "I020", "I21", "I22", "I23", "I24", "I25", "I27", "I30", "I31", "I32*", "I33", "I34", "I35", "I36", "I37", "I38", "I39*", "I40", "I41*", "I42", "I43*", "I44", "I45", "I46", "I47", "I48", "I49", "I050", "I051", "I052", "I70", "I071", "I072", "I080", "I081", "I082", "I083", "I088", "I089", "I090",  "I95", "I098", "I099", "I110", "I119", "I130", "I131", "I132", "I139", "I200", "I201", "I208", "I209", "I210", "I211", "I250" , "I251", "I252", "I254", "I255", "I256", "I258", "I259", "I269", "I278", "I279", "I309", "I310", "I312", "I313", "I319", "I330", "I339", "I340", "I341", "I342", "I350", "I351", "I359", "I400", "I409", "I420", "I421", "I422", "I426", "I428", "I429", "I440", "I441", "I442", "I443", "I447", "I450", "I451", "I452", "I453", "I455", "I456", "I460", "I461", "I469", "I470", "I471", "I472", "I479", "I490", "I491", "I493", "I494", "I495", "I498", "I499", "I500", "I501", "I509", "I510", "I514", "I515", "I516", "I517", "I518", "I519", "I971", "I979",  "R00"  ))
+jantung
+
+# Plot deteksi outlier
+plot_jantung= ggplot(jantung,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif jantung")+xlab("jantung")+ylab("Value")
+ggplotly(plot_jantung)
+
+#handling outlier
+jantung$FKL48=outlier_norm(jantung$FKL48)
+
+# plot setelah treatment
+tplot_jantung= ggplot(jantung,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif jantung")+xlab("jantung")+ylab("Value")
+ggplotly(tplot_jantung)
+
+
+### Menghitung jumlah pasien dan total tarif ###
+# cek apakah ada pasien dengan ID yang sama?
+jantung %>% count(PSTV01) %>% arrange(desc(n))
+#  Total Tarif untuk setiap ID pasien 
+jantung_a = jantung %>% group_by(PSTV01) %>% summarise(sum_FKL48 = sum(FKL48), .groups = "drop" ) %>% as.data.frame()
+jantung_a
+# drop pasien dengan ID yang sama
+jantung_b = jantung[!duplicated(jantung$PSTV01), ]
+jantung_b
+# gabungkan dengan total tarif untuk setiap ID pasien
+jantung_b$Total_tarif = jantung_a$sum_FKL48
+jantung_b
+
+#pisah berdasar gender
+jantung_male = jantung_b %>% filter( PSTV05 == "Laki-laki")
+jantung_male
+jantung_female = jantung_b %>% filter( PSTV05 == "Perempuan")
+jantung_female
+
+#pisah berdasar tahun kunjungan FKL03
+jantung_male_2015 = jantung_male %>% filter(str_detect(FKL03, "2015"))
+jantung_male_2016 = jantung_male %>% filter(str_detect(FKL03, "2016"))
+jantung_female_2015 = jantung_female %>% filter(str_detect(FKL03, "2015"))
+jantung_female_2016 = jantung_female %>% filter(str_detect(FKL03, "2016"))
+
+
+#Hitung total tarif
+sum(jantung_male_2015$Total_tarif)
+sum(jantung_male_2016$Total_tarif)
+sum(jantung_female_2015$Total_tarif)
+sum(jantung_female_2016$Total_tarif)
+
+# Total pasien
+nrow(jantung_male_2015)
+nrow(jantung_male_2016)
+nrow(jantung_female_2015)
+nrow(jantung_female_2016)
+
+### Tabel Morbiditas ###
+
+#pisah berdasar gender
+jantung_male = jantung %>% filter( PSTV05 == "Laki-laki")
+jantung_male
+jantung_female = jantung %>% filter( PSTV05 == "Perempuan")
+jantung_female
+
+# buat ambil kolom id dan umur
+fit_jantungmale<-data.frame(id<-jantung_male$PSTV01, age<-jantung_male$age)
+fitn_jantungmale <- fit_jantungmale %>% group_by(id....jantung_male.PSTV01) %>% filter(!duplicated(age....jantung_male.age))
+fitn_jantungmale
+
+fit_jantungfemale<-data.frame(id<-jantung_female$PSTV01, age<-jantung_female$age)
+fitn_jantungfemale <- fit_jantungfemale %>% group_by(id....jantung_female.PSTV01) %>% filter(!duplicated(age....jantung_female.age))
+fitn_jantungfemale
+
+
+#ekspor ke excel
+library(writexl)
+write_xlsx(fitn_jantungmale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_jantungmale.xlsx", col_names = TRUE)
+write_xlsx(fitn_jantungfemale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_jantungfemale.xlsx", col_names = TRUE)
+
+```
+```{r}
+c <- data_clean %>% filter(str_detect(FKL17,"C4"))
+sort(c$FKL17)
+cek = data_clean %>% filter(FKL17 == "C97")
+cek
+```
+
+
+```{r}
+cancer = data_clean %>% filter( FKL17 %in% c("C01", "C029", "C023", "C020", "C030", "C039", "C040", "C049", "C069", "C060", "C059", "C050", "C07","C080", "C089","C088", "C099", "C100", "C101", "C103", "C109", "C119", "C110", "C118", "C112", "C12", "C140", "C148", "C152", "C159","C169", "C166", "C168","C170", "C172", "C179","C180", "C181", "C182", "C183", "C184", "C186", "C187", "C188", "C189", "C19", "C20", "C210", "C218", "C220","C210","C218","C220", "C221", "C229", "C222", "C224", "C227", "C23", "C240", "C241", "C250", "C259", "C257", "C260", "C268", "C269","C300", "C301", "C310", "C319", "C313", "C329", "C328", "C320", "C33","C340", "C341", "C342", "C348", "C349", "C343", "C37", "C81", "C382", "C383", "C384","C400", "C402", "C403", "C408", "C409", "C401","C410", "C412", "C411", "C419", "C413", "C418", "C439", "C433", "C437", "C440", "C441", "C442", "C443", "C444", "C445", "C446", "C447", "C448", "C449", "C457", "C459", "C460", "C474", "C479", "C490", "C491", "C492", "C493", "C494", "C495", "C498", "C499", "C500", "C501", "C502", "C503", "C504", "C505", "C506", "C508", "C509", "C000", "C009", "C510", "C511", "C519", "C52", "C530", "C531", "C538", "C539", "C540", "C541","C542", "C548", "C549", "C55", "C56","C574","C578","C579", "C58", "C602","C609","C61","C620","C621","C629", "C630", "C632","C64","C65","C66","C670","C675","C676","C679", "C680","C681","C689","C690", "C691", "C692", "C696", "C698", "C699", "C700", "C701", "C709", "C710", "C711", "C713", "C714", "C715", "C716", "C717", "C718", "C719", "C720","C721","C725","C73","C740","C749", "C750", "C751", "C759","C760","C761","C762","C763", "C764","C767","C770", "C773", "C774", "C778", "C779", "C780", "C782", "C785", "C787", "C788", "C791","C792","C793","C794","C795","C796", "C798", "C80", "C810","C811","C817","C819","C820", "C829", "C830", "C833", "C836", "C837", "C838","C839" ,"C842", "C845", "C850", "C851","C857","C859", "C900", "C902", "C962","C969", "C97" )) #digabungin
+
+cancer
+
+# Plot deteksi outlier
+plot_cancer= ggplot(cancer,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif cancer")+xlab("cancer")+ylab("Value")
+ggplotly(plot_cancer)
+
+#handling outlier
+cancer$FKL48=outlier_norm(cancer$FKL48)
+
+# plot setelah treatment
+tplot_cancer= ggplot(cancer,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif cancer")+xlab("cancer")+ylab("Value")
+ggplotly(tplot_cancer)
+
+### Menghitung jumlah pasien dan total tarif ###
+# cek apakah ada pasien dengan ID yang sama?
+cancer %>% count(PSTV01) %>% arrange(desc(n))
+#  Total Tarif untuk setiap ID pasien 
+cancer_a = cancer %>% group_by(PSTV01) %>% summarise(sum_FKL48 = sum(FKL48), .groups = "drop" ) %>% as.data.frame()
+cancer_a
+# drop pasien dengan ID yang sama
+cancer_b = cancer[!duplicated(cancer$PSTV01), ]
+cancer_b
+# gabungkan dengan total tarif untuk setiap ID pasien
+cancer_b$Total_tarif = cancer_a$sum_FKL48
+cancer_b
+
+#pisah berdasar gender
+cancer_male = cancer_b %>% filter( PSTV05 == "Laki-laki")
+cancer_male
+cancer_female = cancer_b %>% filter( PSTV05 == "Perempuan")
+cancer_female
+
+#pisah berdasar tahun kunjungan FKL03
+cancer_male_2015 = cancer_male %>% filter(str_detect(FKL03, "2015"))
+cancer_male_2016 = cancer_male %>% filter(str_detect(FKL03, "2016"))
+cancer_female_2015 = cancer_female %>% filter(str_detect(FKL03, "2015"))
+cancer_female_2016 = cancer_female %>% filter(str_detect(FKL03, "2016"))
+
+
+#Hitung total tarif
+sum(cancer_male_2015$Total_tarif)
+sum(cancer_male_2016$Total_tarif)
+sum(cancer_female_2015$Total_tarif)
+sum(cancer_female_2016$Total_tarif)
+
+# Total pasien
+nrow(cancer_male_2015)
+nrow(cancer_male_2016)
+nrow(cancer_female_2015)
+nrow(cancer_female_2016)
+
+### Tabel Morbiditas ###
+
+#pisah berdasar gender
+cancer_male = cancer %>% filter( PSTV05 == "Laki-laki")
+cancer_male
+cancer_female = cancer %>% filter( PSTV05 == "Perempuan")
+cancer_female
+
+# buat ambil kolom id dan umur
+fit_cancermale<-data.frame(id<-cancer_male$PSTV01, age<-cancer_male$age)
+fitn_cancermale <- fit_cancermale %>% group_by(id....cancer_male.PSTV01) %>% filter(!duplicated(age....cancer_male.age))
+fitn_cancermale
+
+fit_cancerfemale<-data.frame(id<-cancer_female$PSTV01, age<-cancer_female$age)
+fitn_cancerfemale <- fit_cancerfemale %>% group_by(id....cancer_female.PSTV01) %>% filter(!duplicated(age....cancer_female.age))
+fitn_cancerfemale
+
+
+#ekspor ke excel
+library(writexl)
+write_xlsx(fitn_cancermale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_cancermale.xlsx", col_names = TRUE)
+write_xlsx(fitn_cancerfemale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_cancerfemale.xlsx", col_names = TRUE)
+
+```
+```{r}
+sirosis = data_clean %>% filter( FKL17 %in% c("K703", "K717", "K746", "K743", "K744", "K745")) #digabungin
+
+sirosis
+
+# Plot deteksi outlier
+plot_sirosis= ggplot(sirosis,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif sirosis")+xlab("sirosis")+ylab("Value")
+ggplotly(plot_sirosis)
+
+#handling outlier
+sirosis$FKL48=outlier_norm(sirosis$FKL48)
+
+# plot setelah treatment
+tplot_sirosis= ggplot(sirosis,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif sirosis")+xlab("sirosis")+ylab("Value")
+ggplotly(tplot_sirosis)
+
+
+### Menghitung jumlah pasien dan total tarif ###
+# cek apakah ada pasien dengan ID yang sama?
+sirosis %>% count(PSTV01) %>% arrange(desc(n))
+#  Total Tarif untuk setiap ID pasien 
+sirosis_a = sirosis %>% group_by(PSTV01) %>% summarise(sum_FKL48 = sum(FKL48), .groups = "drop" ) %>% as.data.frame()
+sirosis_a
+# drop pasien dengan ID yang sama
+sirosis_b = sirosis[!duplicated(sirosis$PSTV01), ]
+sirosis_b
+# gabungkan dengan total tarif untuk setiap ID pasien
+sirosis_b$Total_tarif = sirosis_a$sum_FKL48
+sirosis_b
+
+#pisah berdasar gender
+sirosis_male = sirosis_b %>% filter( PSTV05 == "Laki-laki")
+sirosis_male
+sirosis_female = sirosis_b %>% filter( PSTV05 == "Perempuan")
+sirosis_female
+
+#pisah berdasar tahun kunjungan FKL03
+sirosis_male_2015 = sirosis_male %>% filter(str_detect(FKL03, "2015"))
+sirosis_male_2016 = sirosis_male %>% filter(str_detect(FKL03, "2016"))
+sirosis_female_2015 = sirosis_female %>% filter(str_detect(FKL03, "2015"))
+sirosis_female_2016 = sirosis_female %>% filter(str_detect(FKL03, "2016"))
+
+
+#Hitung total tarif
+sum(sirosis_male_2015$Total_tarif)
+sum(sirosis_male_2016$Total_tarif)
+sum(sirosis_female_2015$Total_tarif)
+sum(sirosis_female_2016$Total_tarif)
+
+# Total pasien
+nrow(sirosis_male_2015)
+nrow(sirosis_male_2016)
+nrow(sirosis_female_2015)
+nrow(sirosis_female_2016)
+
+### Tabel Morbiditas ###
+
+#pisah berdasar gender
+sirosis_male = sirosis %>% filter( PSTV05 == "Laki-laki")
+sirosis_male
+sirosis_female = sirosis %>% filter( PSTV05 == "Perempuan")
+sirosis_female
+
+# buat ambil kolom id dan umur
+fit_sirosismale<-data.frame(id<-sirosis_male$PSTV01, age<-sirosis_male$age)
+fitn_sirosismale <- fit_sirosismale %>% group_by(id....sirosis_male.PSTV01) %>% filter(!duplicated(age....sirosis_male.age))
+fitn_sirosismale
+
+fit_sirosisfemale<-data.frame(id<-sirosis_female$PSTV01, age<-sirosis_female$age)
+fitn_sirosisfemale <- fit_sirosisfemale %>% group_by(id....sirosis_female.PSTV01) %>% filter(!duplicated(age....sirosis_female.age))
+fitn_sirosisfemale
+
+
+#ekspor ke excel
+library(writexl)
+write_xlsx(fitn_sirosismale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_sirosismale.xlsx", col_names = TRUE)
+write_xlsx(fitn_sirosisfemale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_sirosisfemale.xlsx", col_names = TRUE)
+
+```
+```{r}
+thalassaemia = data_clean %>% filter( FKL17 %in% c("D560", "D561","D562","D563","D568","D569","D572")) #digabungin
+thalassaemia
+
+# Plot deteksi outlier
+plot_thalassaemia= ggplot(thalassaemia,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif thalassaemia")+xlab("thalassaemia")+ylab("Value")
+ggplotly(plot_thalassaemia)
+
+### Menghitung jumlah pasien dan total tarif ###
+# cek apakah ada pasien dengan ID yang sama?
+thalassaemia %>% count(PSTV01) %>% arrange(desc(n))
+#  Total Tarif untuk setiap ID pasien 
+thalassaemia_a = thalassaemia %>% group_by(PSTV01) %>% summarise(sum_FKL48 = sum(FKL48), .groups = "drop" ) %>% as.data.frame()
+thalassaemia_a
+# drop pasien dengan ID yang sama
+thalassaemia_b = thalassaemia[!duplicated(thalassaemia$PSTV01), ]
+thalassaemia_b
+# gabungkan dengan total tarif untuk setiap ID pasien
+thalassaemia_b$Total_tarif = thalassaemia_a$sum_FKL48
+thalassaemia_b
+
+#pisah berdasar gender
+thalassaemia_male = thalassaemia_b %>% filter( PSTV05 == "Laki-laki")
+thalassaemia_male
+thalassaemia_female = thalassaemia_b %>% filter( PSTV05 == "Perempuan")
+thalassaemia_female
+
+#pisah berdasar tahun kunjungan FKL03
+thalassaemia_male_2015 = thalassaemia_male %>% filter(str_detect(FKL03, "2015"))
+thalassaemia_male_2016 = thalassaemia_male %>% filter(str_detect(FKL03, "2016"))
+thalassaemia_female_2015 = thalassaemia_female %>% filter(str_detect(FKL03, "2015"))
+thalassaemia_female_2016 = thalassaemia_female %>% filter(str_detect(FKL03, "2016"))
+
+
+#Hitung total tarif
+sum(thalassaemia_male_2015$Total_tarif)
+sum(thalassaemia_male_2016$Total_tarif)
+sum(thalassaemia_female_2015$Total_tarif)
+sum(thalassaemia_female_2016$Total_tarif)
+
+# Total pasien
+nrow(thalassaemia_male_2015)
+nrow(thalassaemia_male_2016)
+nrow(thalassaemia_female_2015)
+nrow(thalassaemia_female_2016)
+
+### Tabel Morbiditas ###
+
+#pisah berdasar gender
+thalassaemia_male = thalassaemia %>% filter( PSTV05 == "Laki-laki")
+thalassaemia_male
+thalassaemia_female = thalassaemia %>% filter( PSTV05 == "Perempuan")
+thalassaemia_female
+
+# buat ambil kolom id dan umur
+fit_thalassaemiamale<-data.frame(id<-thalassaemia_male$PSTV01, age<-thalassaemia_male$age)
+fitn_thalassaemiamale <- fit_thalassaemiamale %>% group_by(id....thalassaemia_male.PSTV01) %>% filter(!duplicated(age....thalassaemia_male.age))
+fitn_thalassaemiamale
+
+fit_thalassaemiafemale<-data.frame(id<-thalassaemia_female$PSTV01, age<-thalassaemia_female$age)
+fitn_thalassaemiafemale <- fit_thalassaemiafemale %>% group_by(id....thalassaemia_female.PSTV01) %>% filter(!duplicated(age....thalassaemia_female.age))
+fitn_thalassaemiafemale
+
+
+#ekspor ke excel
+library(writexl)
+write_xlsx(fitn_thalassaemiamale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_thalassaemiamale.xlsx", col_names = TRUE)
+write_xlsx(fitn_thalassaemiafemale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_thalassaemiafemale.xlsx", col_names = TRUE)
+
+```
+```{r}
+haemophilia = data_clean %>% filter( FKL17 %in% c("D66", "D67","D680","D681","D698"))
+haemophilia
+
+haemophilia %>% filter(PSTV01 == "11819964")
+
+
+# Plot deteksi outlier
+plot_haemophilia= ggplot(haemophilia,aes(y=FKL48))+geom_boxplot(fill="gold")+ggtitle(
+"Boxplot of Tarif haemophilia")+xlab("haemophilia")+ylab("Value")
+ggplotly(plot_haemophilia)
+
+
+### Menghitung jumlah pasien dan total tarif ###
+# cek apakah ada pasien dengan ID yang sama?
+haemophilia %>% count(PSTV01) %>% arrange(desc(n))
+#  Total Tarif untuk setiap ID pasien 
+haemophilia_a = haemophilia %>% group_by(PSTV01) %>% summarise(sum_FKL48 = sum(FKL48), .groups = "drop" ) %>% as.data.frame()
+haemophilia_a
+# drop pasien dengan ID yang sama
+haemophilia_b = haemophilia[!duplicated(haemophilia$PSTV01), ]
+haemophilia_b
+# gabungkan dengan total tarif untuk setiap ID pasien
+haemophilia_b$Total_tarif = haemophilia_a$sum_FKL48
+haemophilia_b
+
+#pisah berdasar gender
+haemophilia_male = haemophilia_b %>% filter( PSTV05 == "Laki-laki")
+haemophilia_male
+haemophilia_female = haemophilia_b %>% filter( PSTV05 == "Perempuan")
+haemophilia_female
+
+#pisah berdasar tahun kunjungan FKL03
+haemophilia_male_2015 = haemophilia_male %>% filter(str_detect(FKL03, "2015"))
+haemophilia_male_2016 = haemophilia_male %>% filter(str_detect(FKL03, "2016"))
+haemophilia_female_2015 = haemophilia_female %>% filter(str_detect(FKL03, "2015"))
+haemophilia_female_2016 = haemophilia_female %>% filter(str_detect(FKL03, "2016"))
+
+
+#Hitung total tarif
+sum(haemophilia_male_2015$Total_tarif)
+sum(haemophilia_male_2016$Total_tarif)
+sum(haemophilia_female_2015$Total_tarif)
+sum(haemophilia_female_2016$Total_tarif)
+
+# Total pasien
+nrow(haemophilia_male_2015)
+nrow(haemophilia_male_2016)
+nrow(haemophilia_female_2015)
+nrow(haemophilia_female_2016)
+
+### Tabel Morbiditas ###
+
+#pisah berdasar gender
+haemophilia_male = haemophilia %>% filter( PSTV05 == "Laki-laki")
+haemophilia_male
+haemophilia_female = haemophilia %>% filter( PSTV05 == "Perempuan")
+haemophilia_female
+
+# buat ambil kolom id dan umur
+fit_haemophiliamale<-data.frame(id<-haemophilia_male$PSTV01, age<-haemophilia_male$age)
+fitn_haemophiliamale <- fit_haemophiliamale %>% group_by(id....haemophilia_male.PSTV01) %>% filter(!duplicated(age....haemophilia_male.age))
+fitn_haemophiliamale
+
+fit_haemophiliafemale<-data.frame(id<-haemophilia_female$PSTV01, age<-haemophilia_female$age)
+fitn_haemophiliafemale <- fit_haemophiliafemale %>% group_by(id....haemophilia_female.PSTV01) %>% filter(!duplicated(age....haemophilia_female.age))
+fitn_haemophiliafemale
+
+
+#ekspor ke excel
+library(writexl)
+write_xlsx(fitn_haemophiliamale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_haemophiliamale.xlsx", col_names = TRUE)
+write_xlsx(fitn_haemophiliafemale,"C:/Semester 4/PMA II/02KunjunganFKTP/fitn_haemophiliafemale.xlsx", col_names = TRUE)
+
+```
+
+
+
