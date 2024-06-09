@@ -1,0 +1,323 @@
+---
+title: "Forecasting Stock Price"
+author: "Maulida Shabrina"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+For this project, we will use a set of stock data of PT Telekomunikasi Indonesia Tbk (TLKM.JK) for the last three years (May 22, 2019, to May 20, 2022). This project aims to understand and model the volatility patterns of the stock prices using time series analysis techniques. We will explore the applicability of ARIMA and ARCH-GARCH models to predict the future behavior of the stock returns.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(TSA)
+library(aTSA)
+library(forecast)
+library(tseries)
+library(moments)
+library(lmtest)
+library(FinTS)
+library(fGarch)
+```
+
+```{r}
+# import data
+data1 = read.delim("clipboard", header = FALSE)
+data1
+```
+
+```{r}
+# check if the object is a time series
+is.ts(data1)
+```
+It is evident that the data above is not yet in the form of time series data. We will convert the data into a time series format with a monthly frequency (12) and a start date in May 2019
+
+```{r}
+data2 = ts(data1)
+```
+
+```{r}
+# check if data2 is a time series data
+is.ts(data2)
+```
+It is evident that the data is already in the form of time series data.
+
+```{r}
+# Stationary test
+adf.test(data2)
+```
+```{r}
+plot(data2)
+```
+Since the p-value = 0.01 < ⍺ = 0.05, H₀ is rejected. Therefore, it can be concluded that the time series data is stationary with respect to the mean.
+
+```{r}
+tsdisplay(data2)
+```
+In the output, we can see the transformation plot, the ACF plot, and the PACF plot. From the transformation plot, it is evident that the data is stationary with respect to the mean and variance.
+
+```{r}
+# PACF plot
+pacf(data2)
+```
+In the PACF plot, we can determine the order \( p \). From the first 4 lags, the last significant lag is lag 3, hence \( p = 3 \).
+
+```{r}
+# ACF plot
+acf(data2)
+```
+
+In the ACF plot, we can determine the order \( q \). From the first 4 lags, the last significant lag is lag 3, hence \( q = 3 \). As for the order \( d = 0 \) because the data is already known to be stationary with respect to variance, so no transformation is performed on the data. Therefore, the resulting ARIMA model is ARIMA(3,0,3).
+
+```{r}
+# Overfitting
+arima1 <- Arima(data2, order=c(3,0,3), include.constant = T)
+arima2 <- Arima(data2, order=c(3,0,2), include.constant = T)
+arima3 <- Arima(data2, order=c(3,0,1), include.constant = T)
+arima4 <- Arima(data2, order=c(3,0,0), include.constant = T)
+arima5 <- Arima(data2, order=c(2,0,3), include.constant = T)
+arima6 <- Arima(data2, order=c(2,0,2), include.constant = T)
+arima7 <- Arima(data2, order=c(2,0,1), include.constant = T)
+arima8 <- Arima(data2, order=c(2,0,0), include.constant = T)
+arima9 <- Arima(data2, order=c(1,0,3), include.constant = T)
+arima10 <- Arima(data2, order=c(1,0,2), include.constant = T)
+arima11 <- Arima(data2, order=c(1,0,1), include.constant = T)
+arima12 <- Arima(data2, order=c(1,0,0), include.constant = T)
+arima13 <- Arima(data2, order=c(0,0,3), include.constant = T)
+arima14 <- Arima(data2, order=c(0,0,2), include.constant = T)
+arima15 <- Arima(data2, order=c(0,0,1), include.constant = T)
+arima16 <- Arima(data2, order=c(3,0,3), include.constant = F)
+arima17 <- Arima(data2, order=c(3,0,2), include.constant = F)
+arima18 <- Arima(data2, order=c(3,0,1), include.constant = F)
+arima19 <- Arima(data2, order=c(3,0,0), include.constant = F)
+arima20 <- Arima(data2, order=c(2,0,3), include.constant = F)
+arima21 <- Arima(data2, order=c(2,0,2), include.constant = F)
+arima22 <- Arima(data2, order=c(2,0,1), include.constant = F)
+arima23 <- Arima(data2, order=c(2,0,0), include.constant = F)
+arima24 <- Arima(data2, order=c(1,0,3), include.constant = F)
+arima25 <- Arima(data2, order=c(1,0,2), include.constant = F)
+arima26 <- Arima(data2, order=c(1,0,1), include.constant = F)
+arima27 <- Arima(data2, order=c(1,0,0), include.constant = F)
+arima28 <- Arima(data2, order=c(0,0,3), include.constant = F)
+arima29 <- Arima(data2, order=c(0,0,2), include.constant = F)
+arima30 <- Arima(data2, order=c(0,0,1), include.constant = F)
+
+
+
+```
+
+```{r}
+# Test each possible model
+coeftest(arima1)
+```
+```{r}
+coeftest(arima2)
+```
+
+```{r}
+coeftest(arima3)
+```
+
+```{r}
+coeftest(arima4)
+```
+
+```{r}
+coeftest(arima4)
+```
+
+```{r}
+coeftest(arima5)
+```
+
+```{r}
+coeftest(arima6)
+```
+
+```{r}
+coeftest(arima7)
+```
+
+```{r}
+coeftest(arima8)
+```
+
+```{r}
+coeftest(arima9)
+```
+
+```{r}
+coeftest(arima10)
+```
+
+```{r}
+coeftest(arima11)
+```
+
+```{r}
+coeftest(arima12)
+```
+
+```{r}
+coeftest(arima13)
+```
+
+```{r}
+coeftest(arima14)
+```
+
+```{r}
+coeftest(arima15)
+```
+
+```{r}
+coeftest(arima16)
+```
+
+```{r}
+coeftest(arima17)
+```
+
+```{r}
+coeftest(arima18)
+```
+
+```{r}
+coeftest(arima19)
+```
+
+```{r}
+coeftest(arima20)
+```
+
+```{r}
+coeftest(arima21)
+```
+
+```{r}
+coeftest(arima22)
+```
+
+```{r}
+coeftest(arima23)
+```
+
+```{r}
+coeftest(arima24)
+```
+
+```{r}
+coeftest(arima25)
+```
+
+```{r}
+coeftest(arima26)
+```
+
+```{r}
+coeftest(arima27)
+```
+
+```{r}
+coeftest(arima28)
+```
+
+```{r}
+coeftest(arima29)
+```
+
+```{r}
+coeftest(arima30)
+```
+Based on the testing of each possible model, the suitable models are ARIMA (3, 0, 2), ARIMA (2, 0, 3), ARIMA (2, 0, 1), ARIMA (2, 0, 0), ARIMA (1, 0, 0), ARIMA (0, 0, 3), and ARIMA (0, 0, 1) because all variables are significant to the model.
+
+
+```{r}
+# Diagnostic, stationary, and normality test
+
+check_arima <- function(arima_model) {
+  # Run diagnostic, stationary, and normality tests
+  diagnostic <- checkresiduals(arima_model)
+  stationary <- adf.test(residuals(arima_model))
+  normality <- jarque.bera.test(residuals(arima_model))
+  
+  # Store the results in a dataframe
+  results <- data.frame(
+    Model = deparse(substitute(arima_model)),
+    No_Autokorelasi = diagnostic$p.value,
+    Stasioner = stationary$p.value,
+    Normal_Residual = normality$p.value,
+    row.names = NULL
+  )
+  
+  return(results)
+}
+
+arima17_results <- check_arima(arima17)
+arima20_results <- check_arima(arima20)
+arima22_results <- check_arima(arima22)
+arima23_results <- check_arima(arima23)
+arima27_results <- check_arima(arima27)
+arima28_results <- check_arima(arima28)
+arima30_results <- check_arima(arima30)
+
+# Combine results into one dataframe
+all_results <- rbind(arima17_results, arima20_results, arima22_results, arima23_results, arima27_results, arima28_results, arima30_results)
+all_results
+```
+
+```{r}
+tabel = cbind(arima17,arima20)
+tabel_perbandingan = cbind(tabel[6,],tabel[16,],tabel[5,])
+colnames(tabel_perbandingan)=c('AIC','BIC','Loglik')
+tabel_perbandingan
+```
+From both ARIMA models, it can be seen that ARIMA(2,0,3) meets 3 out of 3 of the best model parameter criteria. Therefore, it can be concluded that the best model from the ARIMA method is the ARIMA(2,0,3) model. Next, an ARCH-GARCH analysis will be conducted based on the best model obtained.
+
+```{r}
+# Heteroscedasticity test
+ArchTest(residuals(arima20))
+```
+The p-value is less than 0.05, it indicates that there is significant evidence of ARCH effects (i.e., heteroscedasticity) in the residuals.
+
+```{r}
+# Overfitting ARMA-GARCH
+
+garch11T=garchFit(~arma(2,3)+garch(1,1),data=data2,include.mean=T,trace=
+F)
+garch10T=garchFit(~arma(2,3)+garch(1,0),data=data2,include.mean=T,trace=
+F)
+garch11F=garchFit(~arma(2,3)+garch(1,1),data=data2,include.mean=F,trace=
+F)
+garch10F=garchFit(~arma(2,3)+garch(1,0),data=data2,include.mean=F,trace=
+F)
+
+
+```
+
+```{r}
+# Model Selection
+summary(garch11T)
+summary(garch10T)
+summary(garch11F)
+summary(garch10F)
+
+```
+Overall, the best ARMA-GARCH model is the garch11F model because it has the smallest AIC and BIC values and there are no ARCH effects in the residuals.
+
+
+```{r}
+# Forecast
+predict(garch11F, n.ahead=1,plot=T,nx=734)
+```
+
+```{r}
+p = 4170
+rt = 0.003699791
+pt = exp(log(p)+rt)
+pt
+```
+It can be concluded that the forecasted stock value on May 23, 2022, is 4186.
