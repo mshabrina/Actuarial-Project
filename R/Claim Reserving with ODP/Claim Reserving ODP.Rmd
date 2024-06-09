@@ -1,0 +1,147 @@
+---
+title: "Project Akhir AUK"
+author: "Maulida Shabrina"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ChainLadder)
+library(AER)
+```
+
+```{r}
+## Data
+data1 = ABC
+data1
+```
+
+```{r}
+#plot data kumulatif
+plot(data1, )
+plot(data1,lattice=TRUE)
+```
+
+
+```{r}
+data2 = replace(data1, is.na(data1), 0)
+data2
+```
+```{r}
+data3 = cum2incr(data1)
+data3
+```
+```{r}
+# plot data kumulatif
+plot(data3)
+plot(data3,lattice=TRUE)
+```
+
+```{r}
+# Calculate age-to-age factors for triangle 
+n=11
+f=sapply(1:(n-1), #fungsi sapply untuk mengkuadratkan
+         function(i)
+         {sum(data1[c(1:(n-i)),i+1])/sum(data1[c(1:(n-i)),i])
+         })
+f
+```
+
+```{r}
+# Mengisi run off triangle bagian bawah Chain Ladder
+full.CL = data1
+full.CL
+for(k in 1:(n-1)){
+  full.CL[(n-k+1):n, k+1] = full.CL[(n-k+1):n,k]*f[k]}
+round(full.CL)
+CL= full.CL
+for(i in 1:nrow(full.CL)){
+  for(j in 2:n){
+    CL[i,j] = full.CL[i,j]-full.CL[i,j-1]
+  }}
+CL
+```
+
+```{r}
+# Total cadangan klaim CL
+jumlah=function(matriks)
+{
+  n=ncol(matriks)
+  hasil.jumlah=NULL
+  for (i in 2:n)
+  {
+    hasil.jumlah[i-1]=sum(matriks[i,-(1:(n-i+1))])
+  }
+  hasil.jumlah
+}
+```
+
+```{r}
+jumlah(CL)
+sum(jumlah(CL))
+```
+
+Over-dispersed Poisson GLM
+```{r}
+summary(poi <- glm(value ~ factor(origin) + factor(dev), family = poisson, data=data3))
+```
+```{r}
+dispersion=summary(poi)$dispersion
+cbind(scaled.deviance=poi$deviance/dispersion,df=poi$df.residual, chisquare.95=qchisq(0.95, poi$df.residual), p.value=1-pchisq(poi$deviance/dispersion, poi$df.residual))
+```
+
+
+```{r}
+dispersiontest(poi)
+```
+
+```{r}
+## mencari parameter dan standard error
+fit1=glmReserve(data1)
+fit1
+summary(fit1,type="model") 
+
+```
+```{r}
+# function mengisi run off triangle dengan parameter
+alpha=c( 0.16959,0.32695,0.33506,0.36875,0.35605,0.37309,0.61463,0.93291,1.13551,1.26026)
+beta=c(0.26896,-0.02825,-0.42170,-0.80610,-1.14313,-1.49778,-1.78074, -2.01976,-2.24886,-2.44529 )
+trg=function(x,alpha,beta){
+n=ncol(data2)
+for (i in n:2){
+for (j in 2:n){
+if(x[j,i]==0){x[j,i]=exp(11.85448+alpha[j-1]+beta[i-1])} 
+  else{
+    x[j,i]=x[j,i]}}
+}
+x
+}
+
+```
+
+```{r}
+hasil = trg(data2,alpha, beta)
+hasil
+```
+```{r}
+# total cadangan klaim GLM
+jumlah=function(matriks)
+{
+n=ncol(matriks)
+hasil.jumlah=NULL
+for (i in 2:n)
+  {
+  hasil.jumlah[i-1]=sum(matriks[i,-(1:(n-i+1))])
+  }
+hasil.jumlah
+}
+```
+
+```{r}
+jumlah(hasil)
+sum(jumlah(hasil))
+```
+
