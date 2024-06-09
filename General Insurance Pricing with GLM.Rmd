@@ -1,5 +1,5 @@
 ---
-title: "Project 1 Asuransi Umum dan Kerugian"
+title: "Project 1 General Linear Model"
 author: "Maulida Nur Shabrina"
 output:
   html_document:
